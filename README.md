@@ -3,31 +3,33 @@
 Jonatan Velasquez Vargas
 Bogotá, Colombia
 
-### Dependencias
+### instalacion
 
-Paso 1: Instalar las dependencias del proyecto.
-
-```
-$ npm install
-```
+Paso 1: Clonar repositorio.
 
 ```
-npm install --save-dev gulp
+git clone https://github.com/jonatan1927/pruebaeos.git
+```
+Paso 2: Instalar entorno de python.
+
+```
+pip install virtualenv
+python -m virtualenv venv
+./venv/Scripts/activate
+```
+
+Paso 3: Instalar librearia .
+
+```
+pip install landsatxplore
 ```
 
 ## Compilar
 
-Paso 3: Compile primero para implementación local web app .
+Paso 4: Compilacion
 
 ```
-npm run start
-```
-
-
-Paso 4: Si va a compilar el backend (port 8000).
-
-```
-npm run nodemon
+python manage.py runserver 0.0.0.0:80
 ```
 
 ## Autores / créditos
