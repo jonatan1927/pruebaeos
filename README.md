@@ -1,7 +1,11 @@
-# Implementacion proyect - django
+# Implementacion projecto - django interacción EarthExplorer
 
 Jonatan Velasquez Vargas
 Bogotá, Colombia
+
+### Requirimientos
+
+Python 3.8 
 
 ### instalacion
 
@@ -22,6 +26,7 @@ Paso 3: Instalar librearia .
 
 ```
 pip install landsatxplore
+pip install rasterio
 ```
 
 ## Compilar

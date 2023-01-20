@@ -16,11 +16,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from projects import views
+from django.views.decorators.csrf import csrf_exempt
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('pruebaeos/catalogo/', views.catalogo),
-    path('pruebaeos/descarga/', views.descarga),
-    path('pruebaeos/ndvi/', views.ndvi),
-    path('pruebaeos/borrar/', views.borrar),
+    path('pruebaeos/catalogo/', csrf_exempt(views.catalogo)),
+    path('pruebaeos/descarga/', csrf_exempt(views.descarga)),
+    path('pruebaeos/ndvi/', csrf_exempt(views.ndvi)),
+    path('pruebaeos/borrar/', csrf_exempt(views.borrar)),
 ]

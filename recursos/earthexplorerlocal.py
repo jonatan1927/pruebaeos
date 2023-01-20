@@ -60,7 +60,7 @@ def _get_tokens(body):
     return csrf, ncform
 
 
-class EarthExplorer(object):
+class EarthExplorerLocal(object):
     """Access Earth Explorer portal."""
 
     def __init__(self, username, password):
