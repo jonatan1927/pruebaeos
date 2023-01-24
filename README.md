@@ -13,6 +13,7 @@ Paso 1: Clonar repositorio.
 
 ```
 git clone https://github.com/jonatan1927/pruebaeos.git
+cd pruebaeos
 ```
 Paso 2: Instalar entorno de python.
 
