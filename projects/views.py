@@ -47,7 +47,6 @@ def ndvi(request):
     response = {}
 
     if request.method == 'POST':
-
         received_json_data=json.loads(request.body)
         datos = JVVEarthExplorer.ndvi(received_json_data)
         response["ndvi"] = datos
@@ -61,6 +60,6 @@ def borrar(request):
 
         received_json_data=json.loads(request.body)
         datos = JVVEarthExplorer.delete(received_json_data)
-        response["ndvi"] = datos
+        response["mensaje"] = datos
     
     return HttpResponse(json.dumps(response))

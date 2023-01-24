@@ -27,6 +27,7 @@ Paso 3: Instalar librearia .
 ```
 pip install landsatxplore
 pip install rasterio
+pip install matplotlib
 ```
 
 ## Compilar

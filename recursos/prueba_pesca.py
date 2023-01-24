@@ -14,7 +14,15 @@ import time
 
 import rasterio
 import rasterio.features
-import rasterio.warp
+from rasterio.warp import calculate_default_transform, reproject, Resampling
+from rasterio import plot
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+
+import os
+from subprocess import Popen,PIPE
 
 class JVVEarthExplorer(object):
 
@@ -46,7 +54,7 @@ class JVVEarthExplorer(object):
         # dirs=directories
         for (root, dirs, file) in os.walk(path):
             for f in file:
-                if 'T1_B' in f:
+                if 'T1_B' in f or 'T2_B' in f :
                 # print(f)
                     tempUno = f.split("_")
                     tempDos = (tempUno[len(tempUno) - 1]).replace(".TIF", "").replace("B", "Banda")
@@ -132,12 +140,20 @@ class JVVEarthExplorer(object):
                         
         temporalFilter = {'start' : parameters["fecha_inicio"], 'end' : parameters["fecha_fin"]}
 
-        CloudCoverFilter = {'max' : parameters["nubosidad_max"] }
+        CloudCoverFilter = {'max' : parameters["nubosidad_max"], 'min': 0, 'includeUnknown': True}
         
+        # searchCreatePayload = {'datasetName' : datasetName,
+        #                         'spatialFilter' : spatialFilter,
+        #                         'temporalFilter' : temporalFilter,
+        #                         'CloudCoverFilter' :  CloudCoverFilter}  
+
         searchCreatePayload = {'datasetName' : datasetName,
-                                'spatialFilter' : spatialFilter,
-                                'temporalFilter' : temporalFilter,
-                                'CloudCoverFilter' :  CloudCoverFilter}                 
+                                'sceneFilter' :{
+                                    "spatialFilter":spatialFilter,
+                                    "cloudCoverFilter":CloudCoverFilter,
+                                    "acquisitionFilter":temporalFilter
+                                }
+                            }                 
         
         print("Creating a search request...\n")
         response = sendRequest(serviceUrl + "scene-search", searchCreatePayload, apiKey)
@@ -163,31 +179,97 @@ class JVVEarthExplorer(object):
         return salida      
 
     def ndvi(parameters):
-        img = parameters["escena"] 
-        lon = parameters["lon"]
-        lat = parameters["lat"]
 
-        dat = rasterio.open("./temporal/" + img + "/" + img + "_B4.TIF")
-        print(dat)
-        # read all the data from the first band
-        z = dat.read()[0]
+        if os.path.exists("./temporal/ndviImage3.tiff"):
+            os.remove("./temporal/ndviImage3.tiff")
 
-        print(z)
+        if os.path.exists("./temporal/ndviImagewgs84.tiff"):
+            os.remove("./temporal/ndviImagewgs84.tiff")
+        
+        escena = parameters["escena"]
+        lat =  float(parameters["lat"])
+        lon = float(parameters["lon"])
 
-        # check the crs of the data
-        # dat.crs
-        # >>> CRS.from_epsg(4326)
+        tempUno = escena.split("_")
+        print((tempUno[0])[-2:])
+        tempDos = (tempUno[0])[-2:]
 
-        # check the bounding-box of the data
-        # dat.bounds
-        # >>> Out[49]: BoundingBox(left=-120.0, bottom=45.0, right=-117.0, top=48.0)
+        imagePath = './temporal/'+escena+'/'
+        if tempDos == '05' or tempDos == '07' :
+            banda3 = rasterio.open(imagePath+ escena + '_B3.TIF')
+            banda4 = rasterio.open(imagePath+ escena + '_B4.TIF')
+        else :
+            banda3 = rasterio.open(imagePath+ escena + '_B4.TIF')
+            banda4 = rasterio.open(imagePath+ escena + '_B5.TIF')
 
-        # since the raster is in regular lon/lat grid (4326) we can use 
-        # `dat.index()` to identify the index of a given lon/lat pair
-        # (e.g. it expects coordinates in the native crs of the data)
+        red = banda3.read(1).astype('float64')
+        nir = banda4.read(1).astype('float64')
 
-        # idx = dat.index(float(lon), float(lat), precision=1E-6)    
-        # return dat.xy(*idx), z[idx]
+        ndvi = np.where(
+            (nir+red)== 0.,
+            0,
+            (nir-red)/(nir+red)
+        )
+
+        ndviImage = rasterio.open('./temporal/ndviImage3.tiff', 'w', driver='Gtiff',
+                        width=banda3.width, height=banda3.height,
+                        count=1,
+                        crs=banda3.crs,
+                        transform=banda3.transform,
+                        dtype='float64'
+                        )
+        ndviImage.write(ndvi,1)
+        ndviImage.close()
+
+        #open source raster
+        srcRst = rasterio.open('./temporal/ndviImage3.tiff')
+        print("source raster crs:")
+        print(ndviImage.crs)
+
+        dstCrs = {'init': 'EPSG:4326'}
+        print("destination raster crs:")
+        print(dstCrs)
+
+        #calculate transform array and shape of reprojected raster
+        transform, width, height = calculate_default_transform(
+                srcRst.crs, dstCrs, srcRst.width, srcRst.height, *srcRst.bounds)
+        print("transform array of source raster")
+        print(srcRst.transform)
+
+        print("transform array of destination raster")
+        print(transform)
+
+        #working of the meta for the destination raster
+        kwargs = srcRst.meta.copy()
+        kwargs.update({
+                'crs': dstCrs,
+                'transform': transform,
+                'width': width,
+                'height': height
+            })
+        #open destination raster
+        dstRst = rasterio.open('./temporal/ndviImagewgs84.tiff', 'w', **kwargs)
+        #reproject and save raster band data
+        for i in range(1, srcRst.count + 1):
+            reproject(
+                source=rasterio.band(srcRst, i),
+                destination=rasterio.band(dstRst, i),
+                #src_transform=srcRst.transform,
+                src_crs=srcRst.crs,
+                #dst_transform=transform,
+                dst_crs=dstCrs,
+                resampling=Resampling.nearest)
+        #close destination raster
+        dstRst.close()
+
+        x1,y1 = lon, lat
+
+        ndviRaster = rasterio.open('./temporal/ndviImagewgs84.tiff')
+        row, col = ndviRaster.index(x1,y1)
+        jvv = ndviRaster.read(1)[row,col]
+
+        return jvv
+
 
 
 
@@ -196,3 +278,9 @@ class JVVEarthExplorer(object):
 # https://github.com/yannforget/landsatxplore
 # https://pypi.org/project/landsat-util/
 # https://github.com/Fergui/m2m-api
+# https://hatarilabs.com/ih-en/extract-point-value-from-a-raster-file-with-python-geopandas-and-rasterio-tutorial
+# https://zectre.github.io/geospatialpython/2021/08/08/NDVI-With-Rasterio.html
+# https://developers.planet.com/docs/planetschool/calculate-an-ndvi-in-python/
+# https://readthedocs.org/projects/rasterio/downloads/pdf/stable/
+# https://rasterio.readthedocs.io/en/latest/topics/index.html
+# https://rasterio.readthedocs.io/en/latest/topics/georeferencing.html
